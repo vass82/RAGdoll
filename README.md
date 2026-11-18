@@ -51,3 +51,18 @@ docker compose up --build
 ```
 
 Ollama is not included in the Compose configuration and must be run separately.
+
+## Testing and code quality
+
+After `uv sync`, run the same checks as the CI workflow
+(`.github/workflows/ci.yml`):
+
+```sh
+uv run pytest                    # run the test suite
+uv run ruff check .              # lint
+uv run ruff format --check .     # verify formatting
+uv run ruff format .             # apply formatting fixes
+```
+
+To match CI exactly and fail if `uv.lock` is out of date, add `--locked` to
+each command, for example `uv run --locked pytest`.
