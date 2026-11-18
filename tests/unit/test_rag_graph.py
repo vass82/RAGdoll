@@ -12,7 +12,7 @@ from langchain_core.retrievers import BaseRetriever
 from pydantic import Field
 
 from app.rag.graph import RAGGenerationError, build_rag_graph
-from app.rag.retrieval import create_retrieval_node
+from app.rag.retrieval import RAGRetrievalError, create_retrieval_node
 from app.rag.state import RAGState
 
 DOCUMENTS = [
@@ -38,6 +38,15 @@ class FakeRetriever(BaseRetriever):
     ) -> list[Document]:
         self.queries.append(query)
         return list(self.documents)
+
+
+class FailingRetriever(BaseRetriever):
+    """Retriever whose lookup always raises a connection error."""
+
+    def _get_relevant_documents(
+        self, query: str, *, run_manager: Any
+    ) -> list[Document]:
+        raise ConnectionError("vector store unavailable")
 
 
 class FakeChatModel(BaseChatModel):
@@ -83,6 +92,15 @@ def test_retrieval_node_returns_documents_for_question() -> None:
 
     assert update == {"documents": DOCUMENTS}
     assert retriever.queries == ["What web framework does RAGdoll use?"]
+
+
+def test_retriever_exception_is_raised_as_retrieval_error() -> None:
+    graph = build_rag_graph(FailingRetriever(), FakeChatModel())
+
+    with pytest.raises(RAGRetrievalError) as exc_info:
+        graph.invoke({"question": "question"})
+
+    assert isinstance(exc_info.value.__cause__, ConnectionError)
 
 
 def test_graph_generates_answer_from_question_and_retrieved_context() -> None:

@@ -7,6 +7,10 @@ from langchain_core.retrievers import BaseRetriever
 from app.rag.state import RAGState
 
 
+class RAGRetrievalError(RuntimeError):
+    """Raised when the retriever fails to return documents."""
+
+
 def create_retrieval_node(retriever: BaseRetriever) -> Callable[[RAGState], dict]:
     """Create a LangGraph node that retrieves documents for the state's question.
 
@@ -26,8 +30,12 @@ def create_retrieval_node(retriever: BaseRetriever) -> Callable[[RAGState], dict
         :type state: RAGState
         :returns: A partial state update containing the retrieved documents.
         :rtype: dict
+        :raises RAGRetrievalError: If the retriever raises an exception.
         """
-        documents = retriever.invoke(state["question"])
+        try:
+            documents = retriever.invoke(state["question"])
+        except Exception as exc:
+            raise RAGRetrievalError("Document retrieval failed.") from exc
         return {"documents": documents}
 
     return retrieve
