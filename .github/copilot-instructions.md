@@ -1,4 +1,5 @@
 ## Project context
+Project context
 
 RAGdoll is a Python backend application implementing a simple Retrieval-Augmented Generation (RAG) pipeline. It uses FastAPI for the HTTP API and LangChain/LangGraph for the RAG workflow.
 
