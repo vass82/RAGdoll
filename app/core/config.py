@@ -2,6 +2,7 @@
 
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,6 +28,9 @@ class Settings(BaseSettings):
     :ivar ollama_model: Ollama model name.
     :ivar embedding_model: Hugging Face / Sentence Transformers model name used
         for local embeddings.
+    :ivar documents_dir: Directory containing the Markdown source documents.
+    :ivar chunk_size: Maximum number of characters per document chunk.
+    :ivar chunk_overlap: Number of characters shared by adjacent chunks.
     """
 
     model_config = SettingsConfigDict(
@@ -42,6 +46,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    documents_dir: Path = Path("data/documents")
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
 
 
 @lru_cache
