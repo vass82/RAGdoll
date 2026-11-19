@@ -34,12 +34,10 @@ def get_question_service() -> QuestionService:
         embeddings = create_embeddings(settings)
         store = create_in_memory_vector_store(embeddings)
         return QuestionService(build_rag_graph(store.as_retriever(), chat_model))
-        
+
     except Exception as exc:
         logger.error("Question service initialisation failed: %s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The question service is not available.",
         ) from exc
-
-    
