@@ -41,8 +41,35 @@ uv run uvicorn app.main:app --reload
 ```
 
 The development server listens on `http://127.0.0.1:8000`; check
-`http://127.0.0.1:8000/health` for its status. The settings in `.env` are
-placeholders and are not yet loaded by the application.
+`http://127.0.0.1:8000/health` for its status. Settings are read from `.env`
+and environment variables; see `.env.example` for the available options. The
+default provider is OpenAI (requires `OPENAI_API_KEY`); set `LLM_PROVIDER=ollama`
+to use a local Ollama server instead.
+
+## Question API
+
+`POST /api/v1/questions` accepts `{"question": "..."}` and returns the answer
+with its sources:
+
+```sh
+curl -X POST http://127.0.0.1:8000/api/v1/questions \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What does the document say about X?"}'
+```
+
+```json
+{
+  "answer": "...",
+  "sources": [
+    {"document_name": "guide.md", "section": "Setup", "content": "...", "metadata": {}}
+  ]
+}
+```
+
+Errors: `422` for invalid input, `502` when generation fails, `503` when the
+retrieval backend or model is unavailable, and `500` for unexpected errors.
+The vector store is currently empty, so answers will report that the context
+does not contain enough information until documents are ingested.
 
 To run the backend in Docker after creating `.env`, use:
 
