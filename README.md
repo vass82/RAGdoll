@@ -68,8 +68,13 @@ curl -X POST http://127.0.0.1:8000/api/v1/questions \
 
 Errors: `422` for invalid input, `502` when generation fails, `503` when the
 retrieval backend or model is unavailable, and `500` for unexpected errors.
-The vector store is currently empty, so answers will report that the context
-does not contain enough information until documents are ingested.
+The vector store is initialized as follows:
+
+- Markdown documents are loaded recursively from data/documents/.
+- At least one non-empty Markdown document must be present.
+- The knowledge base is built lazily on the first question request.
+- The initial request can take longer because embeddings and indexing are performed then.
+- A failed initialisation produces a 503.
 
 To run the backend in Docker after creating `.env`, use:
 
