@@ -1,11 +1,14 @@
 """Unit tests for the HTTP API using FastAPI's test client."""
 
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
 from langchain_core.embeddings.fake import DeterministicFakeEmbedding
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
@@ -13,10 +16,23 @@ from langchain_core.runnables import RunnableLambda
 
 from app.api import dependencies
 from app.api.dependencies import get_question_service
+from app.core.config import get_settings
 from app.main import app
 from app.rag.graph import RAGGenerationError
 from app.rag.retrieval import RAGRetrievalError
+from app.services.knowledge_base import build_knowledge_base
 from app.services.question_service import QuestionService
+
+
+class FailingEmbeddings(Embeddings):
+    """Embeddings whose model is unavailable, so every call fails."""
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        raise RuntimeError("Embedding model unavailable.")
+
+    def embed_query(self, text: str) -> list[float]:
+        raise RuntimeError("Embedding model unavailable.")
+
 
 SOURCE = Document(
     page_content="RAGdoll uses FastAPI for its HTTP API.",
@@ -181,8 +197,11 @@ def test_unexpected_error_returns_generic_500(
 
 @pytest.fixture
 def reset_service_cache() -> Iterator[None]:
+    """Clear cached settings and the question service around each test."""
+    get_settings.cache_clear()
     get_question_service.cache_clear()
     yield
+    get_settings.cache_clear()
     get_question_service.cache_clear()
 
 
@@ -200,11 +219,40 @@ def test_missing_api_key_returns_503_without_exposing_configuration(
 
 
 @pytest.mark.usefixtures("clean_settings_env", "reset_service_cache")
-def test_default_wiring_answers_with_empty_store(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+def test_default_wiring_answers_from_indexed_documents(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The real wiring runs end to end with local fakes for the model and embeddings."""
+    """The real wiring indexes the documents and answers with local fakes."""
+    (tmp_path / "overview.md").write_text("RAGdoll uses FastAPI.", encoding="utf-8")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("DOCUMENTS_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        dependencies,
+        "create_chat_model",
+        lambda settings: GenericFakeChatModel(messages=iter([AIMessage("FastAPI.")])),
+    )
+    monkeypatch.setattr(
+        dependencies,
+        "create_embeddings",
+        lambda settings: DeterministicFakeEmbedding(size=8),
+    )
+
+    response = client.post("/api/v1/questions", json={"question": "Which framework?"})
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "FastAPI."
+    assert [source["document_name"] for source in response.json()["sources"]] == [
+        "overview.md"
+    ]
+
+
+@pytest.mark.usefixtures("clean_settings_env", "reset_service_cache")
+def test_empty_knowledge_base_returns_503_and_is_not_cached(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An empty documents directory fails initialisation instead of starting empty."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("DOCUMENTS_DIR", str(tmp_path))
     monkeypatch.setattr(
         dependencies,
         "create_chat_model",
@@ -218,6 +266,72 @@ def test_default_wiring_answers_with_empty_store(
 
     response = client.post("/api/v1/questions", json={"question": "Anything?"})
 
-    assert response.status_code == 200
-    assert response.json()["sources"] == []
-    assert "could not find" in response.json()["answer"]
+    assert response.status_code == 503
+    assert response.json() == {"detail": "The question service is not available."}
+    with pytest.raises(HTTPException):
+        get_question_service()
+
+
+@pytest.mark.usefixtures("clean_settings_env", "reset_service_cache")
+def test_knowledge_base_is_built_once_per_process(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / "overview.md").write_text("RAGdoll uses FastAPI.", encoding="utf-8")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("DOCUMENTS_DIR", str(tmp_path))
+    builds: list[Any] = []
+
+    def counting_build(settings: Any, embeddings: Any) -> Any:
+        builds.append(settings)
+        return build_knowledge_base(settings, embeddings)
+
+    monkeypatch.setattr(dependencies, "build_knowledge_base", counting_build)
+    monkeypatch.setattr(
+        dependencies,
+        "create_chat_model",
+        lambda settings: GenericFakeChatModel(messages=iter([AIMessage("unused")])),
+    )
+    monkeypatch.setattr(
+        dependencies,
+        "create_embeddings",
+        lambda settings: DeterministicFakeEmbedding(size=8),
+    )
+
+    first = get_question_service()
+    second = get_question_service()
+
+    assert first is second
+    assert len(builds) == 1
+
+
+@pytest.mark.usefixtures("clean_settings_env", "reset_service_cache")
+def test_failed_indexing_is_not_cached_and_is_retried(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A failed build is not cached, so a later request can succeed."""
+    (tmp_path / "overview.md").write_text("RAGdoll uses FastAPI.", encoding="utf-8")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("DOCUMENTS_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        dependencies,
+        "create_chat_model",
+        lambda settings: GenericFakeChatModel(messages=iter([AIMessage("FastAPI.")])),
+    )
+    monkeypatch.setattr(
+        dependencies,
+        "create_embeddings",
+        lambda settings: FailingEmbeddings(),
+    )
+
+    first = client.post("/api/v1/questions", json={"question": "Which framework?"})
+    assert first.status_code == 503
+
+    monkeypatch.setattr(
+        dependencies,
+        "create_embeddings",
+        lambda settings: DeterministicFakeEmbedding(size=8),
+    )
+    second = client.post("/api/v1/questions", json={"question": "Which framework?"})
+
+    assert second.status_code == 200
+    assert second.json()["answer"] == "FastAPI."
