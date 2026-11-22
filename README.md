@@ -98,3 +98,28 @@ uv run ruff format .             # apply formatting fixes
 
 To match CI exactly and fail if `uv.lock` is out of date, add `--locked` to
 each command, for example `uv run --locked pytest`.
+
+## Documentation
+
+The Sphinx documentation is published to GitHub Pages at:
+
+<https://vass82.github.io/RAGdoll/>
+
+It is rebuilt by `.github/workflows/docs.yml`. Pull requests into `main` build
+and validate it; pushes to `main` also deploy it.
+
+To build it locally from the repository root, run:
+
+```sh
+bash scripts/build_docs.sh
+```
+
+This runs the test suite with coverage (writing `htmlcov/`), then builds the
+HTML documentation with warnings treated as errors. Open
+`docs/_build/html/index.html` in a browser.
+
+**Repository setup (one time, by a repository administrator):** in
+*Settings → Pages*, set *Source* to **GitHub Actions**. Without this, the
+deploy job fails. The deploy job runs only for `main`. As an extra safeguard,
+in *Settings → Environments → github-pages*, restrict deployment branches to
+`main`.
