@@ -13,8 +13,7 @@ The **RAGdoll** Python package is aimed to serve as... For a general introductio
    RAG_background
    GetDP_documentation
    concurrency_and_scalability
-   tutorials
-   src/index
+   src-api/index
 
 Coverage
 ========
