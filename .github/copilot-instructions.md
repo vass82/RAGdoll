@@ -53,7 +53,16 @@ def retrieve_documents(question: str) -> list[Document]:
 ```
 
 Use meaningful module, class, and function docstrings. Avoid documenting obvious implementation details or adding verbose comments that simply repeat the code.
-Testing conventions
+
+- Use meaningful cross-references (:ref:, :func:, :class:, :mod:).
+- Include diagrams where they genuinely help explain architecture.
+- Explain technical concepts rather than simply listing definitions.
+- Distinguish implemented functionality from proposed future improvements.
+- Never invent configuration options or application behaviour.
+- Keep examples consistent with the actual repository.
+- Verify all commands in tutorials against the current Docker and Python configuration.
+
+## Testing conventions
 
 -    Use pytest.
 
@@ -67,7 +76,7 @@ Testing conventions
 
 -    Keep tests readable and avoid excessive mocking of internal implementation details.
 
-Code quality
+## Code quality
 
 -    Follow the existing Ruff configuration.
 
