@@ -16,13 +16,9 @@ built with FastAPI and LangGraph. For a general introduction see
    RAG_background
    GetDP_documentation
    concurrency_and_scalability
-   src-api/index
-
-Coverage
-========
-
-    `Coverage report <coverage_html/index.html>`_
-
+   http_api
+   python_api
+   coverage
 
 Indices and tables
 ==================

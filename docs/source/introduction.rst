@@ -261,4 +261,5 @@ Reading guide
   :ref:`getdp_documentation`.
 * To understand what would change under load, read
   :ref:`concurrency_and_scalability`.
-* For class and function details, see the :doc:`src-api/index` reference.
+* For the HTTP endpoints, see the :ref:`http_api` reference.
+* For class and function details, see the :ref:`python_api` reference.
