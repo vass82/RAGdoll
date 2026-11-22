@@ -1,8 +1,10 @@
 Welcome to RAGdoll's documentation!
 ===================================
 
-The **RAGdoll** Python package is aimed to serve as... For a general introduction see
-:ref:`RAG_background`.
+The **RAGdoll** Python package is a Retrieval-Augmented Generation (RAG) API
+built with FastAPI and LangGraph. For a general introduction see
+:ref:`RAG_background`. To install and run the API, start with the
+:ref:`tutorials_index`.
 
 
 .. toctree::
@@ -10,6 +12,7 @@ The **RAGdoll** Python package is aimed to serve as... For a general introductio
    :caption: Contents:
 
    introduction
+   tutorials/index
    RAG_background
    GetDP_documentation
    concurrency_and_scalability

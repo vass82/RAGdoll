@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 project = "RAGdoll"
 copyright = "Peter Vass"
 author = "Peter Vass"
