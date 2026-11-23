@@ -47,7 +47,7 @@ question.
 
 The embedding score measures similarity only. Relevance is therefore best
 evaluated against questions with known answers, which is the approach described
-in :ref:`rag_interview_questions`.
+in :ref:`rag_faq`.
 
 Chunking trade-offs
 -------------------
