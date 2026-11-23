@@ -11,6 +11,11 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - "README.md"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose.yml"
+      - ".env.example"
+      - "data/documents/**"
       - ".github/workflows/docs.yml"
   pull_request:
     branches: [main]
@@ -22,6 +27,11 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - "README.md"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose.yml"
+      - ".env.example"
+      - "data/documents/**"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
