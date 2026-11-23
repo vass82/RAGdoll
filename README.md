@@ -1,125 +1,120 @@
 # RAGdoll
 
-RAGdoll is a Python backend skeleton for a retrieval-augmented generation (RAG)
-application. Functionality will be implemented incrementally.
+RAGdoll is a Python backend for question answering over Markdown documents using
+retrieval-augmented generation (RAG). A client sends a question to the HTTP API;
+the service retrieves the most relevant document passages, passes them to a
+language model, and returns the answer together with its sources.
 
-## Planned stack
+Documentation: <https://vass82.github.io/RAGdoll/>
 
-- FastAPI for the HTTP API
-- LangChain and LangGraph for document processing and RAG orchestration
-- ChromaDB for vector storage and Hugging Face sentence-transformers for embeddings
-- OpenAI and Ollama as cloud and local LLM providers
-- pytest and HTTPX for testing, Ruff for linting and formatting, and Docker for deployment
+## Implemented features
 
-ChromaDB and its LangChain integration are not yet dependencies: the current
-ChromaDB release has reported security vulnerabilities with no available fix.
-They will be added when a safe release is available.
+- HTTP API built with FastAPI (`GET /health`, `POST /api/v1/questions`).
+- RAG workflow built with LangGraph: retrieval followed by generation.
+- Loading, chunking, embedding, and indexing of Markdown documents from `data/documents/`.
+- Local embeddings with Sentence Transformers (no API key required).
+- In-memory vector store, rebuilt when the process starts.
+- OpenAI (default) or Ollama (local) as the chat model provider.
+- Lazy knowledge-base initialization on the first question request.
+- Automated tests, Ruff checks, Docker Compose support, and GitHub Actions CI.
+
+Not implemented yet: persistent or shared vector storage, streaming responses,
+conversation memory, and advanced retrieval such as metadata filtering, hybrid
+search, or reranking. The Sphinx documentation discusses these as possible future
+work. ChromaDB is one candidate for a future persistent store; it is not a dependency.
+
+## Technology stack
+
+| Concern            | Implementation                                             |
+|--------------------|------------------------------------------------------------|
+| HTTP API           | FastAPI, served by Uvicorn                                 |
+| RAG workflow       | LangGraph on top of LangChain                              |
+| Document splitting | `langchain-text-splitters`                                 |
+| Embeddings         | Sentence Transformers via `langchain-huggingface`          |
+| Vector store       | LangChain `InMemoryVectorStore`                            |
+| Chat model         | OpenAI (`langchain-openai`) or Ollama (`langchain-ollama`) |
+| Configuration      | pydantic-settings, from environment variables and `.env`   |
+| Tests and lint     | pytest, HTTPX, Ruff, pytest-cov                            |
 
 ## Repository structure
 
 ```text
 app/
-  main.py             FastAPI entry point
-  api/                HTTP routes
-  core/               Configuration
-  services/           Application services
-  rag/                RAG workflow, state, retrieval, and prompts
-  infrastructure/     LLM, embedding, and vector store integrations
-data/documents/       Source documents
-scripts/              Utility scripts
-tests/                Automated tests
+  main.py             FastAPI application and /health endpoint
+  api/                Routes, request and response schemas, dependency wiring
+  core/               Settings (environment variables and .env)
+  services/           Knowledge-base construction and question service
+  rag/                Chunking, indexing, retrieval, prompts, LangGraph workflow
+  infrastructure/     Document loader, embedding, vector store, and LLM factories
+data/documents/       Markdown source documents
+docs/source/          Sphinx documentation
+scripts/              build_docs.sh (tests with coverage, then Sphinx build)
+tests/                unit/ and integration/ test suites
 ```
 
-## Local setup
+## Quick start
 
-Install Python 3.12 or newer and [uv](https://docs.astral.sh/uv/), then run:
+Requires Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
 
 ```sh
-cp .env.example .env
+cp .env.example .env     # set OPENAI_API_KEY, or LLM_PROVIDER=ollama
 uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-The development server listens on `http://127.0.0.1:8000`; check
-`http://127.0.0.1:8000/health` for its status. Settings are read from `.env`
-and environment variables; see `.env.example` for the available options. The
-default provider is OpenAI (requires `OPENAI_API_KEY`); set `LLM_PROVIDER=ollama`
-to use a local Ollama server instead.
+The server listens on `http://127.0.0.1:8000`. The first question request builds
+the knowledge base, which can take longer because documents are embedded and the
+embedding model may be downloaded. See the
+[local setup tutorial](https://vass82.github.io/RAGdoll/tutorials/local_setup.html)
+and the [configuration reference](https://vass82.github.io/RAGdoll/tutorials/configuration.html).
 
-## Question API
-
-`POST /api/v1/questions` accepts `{"question": "..."}` and returns the answer
-with its sources:
+## HTTP API
 
 ```sh
+curl http://127.0.0.1:8000/health
+
 curl -X POST http://127.0.0.1:8000/api/v1/questions \
   -H "Content-Type: application/json" \
   -d '{"question": "What does the document say about X?"}'
 ```
 
-```json
-{
-  "answer": "...",
-  "sources": [
-    {"document_name": "guide.md", "section": "Setup", "content": "...", "metadata": {}}
-  ]
-}
-```
+The response contains `answer` and `sources`. While the server runs, interactive
+FastAPI documentation is available at `/docs`. The full endpoint, schema, and
+status-code reference is in the [HTTP API documentation](https://vass82.github.io/RAGdoll/http_api.html).
 
-Errors: `422` for invalid input, `502` when generation fails, `503` when the
-retrieval backend or model is unavailable, and `500` for unexpected errors.
-The vector store is initialized as follows:
+## Docker Compose
 
-- Markdown documents are loaded recursively from data/documents/.
-- At least one non-empty Markdown document must be present.
-- The knowledge base is built lazily on the first question request.
-- The initial request can take longer because embeddings and indexing are performed then.
-- A failed initialisation produces a 503.
-
-To run the backend in Docker after creating `.env`, use:
+After creating `.env`, build and start the backend:
 
 ```sh
 docker compose up --build
 ```
 
-Ollama is not included in the Compose configuration and must be run separately.
+The API is published on port 8000. Ollama is not included in the Compose file and
+must be run separately. See the [Docker tutorial](https://vass82.github.io/RAGdoll/tutorials/docker_setup.html).
 
 ## Testing and code quality
-
-After `uv sync`, run the same checks as the CI workflow
-(`.github/workflows/ci.yml`):
 
 ```sh
 uv run pytest                    # run the test suite
 uv run ruff check .              # lint
-uv run ruff format --check .     # verify formatting
-uv run ruff format .             # apply formatting fixes
+uv run ruff format --check .     # check formatting
 ```
 
-To match CI exactly and fail if `uv.lock` is out of date, add `--locked` to
-each command, for example `uv run --locked pytest`.
+CI runs these commands with `--locked` (see `.github/workflows/ci.yml`).
 
 ## Documentation
 
-The Sphinx documentation is published to GitHub Pages at:
-
-<https://vass82.github.io/RAGdoll/>
-
-It is rebuilt by `.github/workflows/docs.yml`. Pull requests into `main` build
-and validate it; pushes to `main` also deploy it.
-
-To build it locally from the repository root, run:
+The Sphinx documentation is published to GitHub Pages at
+<https://vass82.github.io/RAGdoll/>. To build it locally:
 
 ```sh
 bash scripts/build_docs.sh
 ```
 
-This runs the test suite with coverage (writing `htmlcov/`), then builds the
-HTML documentation with warnings treated as errors. Open
-`docs/_build/html/index.html` in a browser.
+The generated HTML is written to `docs/_build/html/`.
 
-**Repository setup (one time, by a repository administrator):** in
-*Settings → Pages*, set *Source* to **GitHub Actions**. Without this, the
-deploy job fails. The deploy job runs only for `main`. As an extra safeguard,
-in *Settings → Environments → github-pages*, restrict deployment branches to
-`main`.
+## License
+
+Released under the MIT License. See [LICENSE](LICENSE).
+

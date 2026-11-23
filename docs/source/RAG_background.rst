@@ -20,7 +20,7 @@ The pages are:
    rag/generation
    rag/retrieval_quality
    rag/frameworks
-   rag/interview_questions
+   rag/rag_faq
 
 .. _rag_end_to_end:
 
