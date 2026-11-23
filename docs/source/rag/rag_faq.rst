@@ -1,12 +1,10 @@
-.. _rag_interview_questions:
+.. _rag_faq:
 
-Interview preparation
-=====================
+FAQ
+===
 
 This page collects questions that are commonly asked about RAG and gives short
-answers, with pointers to the sections above and to RAGdoll's code. The answers
-are written to be spoken, and each one can be expanded with the material in
-the earlier pages.
+answers, with pointers to the sections above and to RAGdoll's code.
 
 Fundamentals
 ------------
